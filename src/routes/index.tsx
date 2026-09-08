@@ -324,7 +324,7 @@ function Index() {
 
         {/* RIGHT: metric cards */}
         <section className="lg:col-span-3">
-          <div className="grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid content-start gap-5 sm:grid-cols-3 lg:grid-cols-1">
             <div className="glass rounded-[18px] p-4 ring-1 ring-line">
               <p className="text-[11px] uppercase tracking-wider text-mist/50">Demand index</p>
               <p className="mt-2 font-display text-2xl font-semibold text-white">
@@ -402,7 +402,7 @@ function Index() {
             <span className="hidden text-xs text-mist/50 sm:block">All figures in INR</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
             {/* cost split */}
             <div className="glass rounded-[18px] p-5 ring-1 ring-line lg:col-span-4">
               <h3 className="font-display text-sm font-semibold text-white/90">
