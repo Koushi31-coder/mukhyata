@@ -261,7 +261,9 @@ export function routeSchemes(i: Inputs, f: Feasibility): SchemeMatch[] {
     const projectCost = Math.min(baseCost, scheme.maxProjectCost);
     const subsidy = Math.round((projectCost * scheme.subsidyPct) / 100);
     const requiredOwn = Math.round((projectCost * scheme.contributionPct) / 100);
-    const ownContribution = Math.min(Math.max(i.capital, requiredOwn), projectCost - subsidy);
+    // Entrepreneur puts in the scheme-mandated margin only; surplus capital is
+    // kept back as working-capital buffer rather than forced into the project.
+    const ownContribution = Math.min(requiredOwn, projectCost - subsidy);
     const loan = Math.max(0, projectCost - subsidy - ownContribution);
     const emi = emiFor(loan, scheme.interestRate, scheme.tenureMonths);
     const totalRepayment = emi * scheme.tenureMonths;
