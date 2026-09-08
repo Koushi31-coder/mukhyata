@@ -1,5 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { findCompetitors, type CompetitorResult } from "@/lib/competitors.functions";
+
+const CompetitorMapLazy = lazy(() => import("@/components/CompetitorMap"));
+const CompetitorMap = (props: { data: CompetitorResult }) => (
+  <Suspense
+    fallback={<div className="h-[360px] w-full rounded-[12px] bg-ink/40 ring-1 ring-line" />}
+  >
+    <CompetitorMapLazy {...props} />
+  </Suspense>
+);
 import {
   CATEGORIES,
   DENSITIES,
@@ -73,6 +83,34 @@ function Index() {
   const [selected, setSelected] = useState<string | null>(null);
   const active =
     matches.find((m) => m.scheme.code === selected) ?? matches[0]!;
+
+  const [radiusKm, setRadiusKm] = useState(10);
+  const [mapData, setMapData] = useState<CompetitorResult | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const scan = async () => {
+    setScanning(true);
+    setMapError(null);
+    try {
+      const res = await findCompetitors({
+        data: {
+          village: inputs.village,
+          block: inputs.block,
+          district: inputs.district,
+          category: inputs.category,
+          radiusKm,
+        },
+      });
+      setMapData(res);
+    } catch (err) {
+      setMapError(
+        err instanceof Error ? err.message : "Could not load nearby competitors right now.",
+      );
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const gaugeDeg = (f.total / 100) * 360;
   const dscrPos = Math.min(Math.max(active.dscr / 2, 0), 1) * 100;
