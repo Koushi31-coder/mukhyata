@@ -137,13 +137,17 @@ export function computeFeasibility(i: Inputs): Feasibility {
   const projectCost = Math.max(i.revenue * category.costFactor, i.capital);
   const capitalCoverage = projectCost > 0 ? (i.capital / projectCost) * 100 : 0;
 
-  const factors: FactorRow[] = [
-    { label: "Market demand", weight: 25, score: Math.round(demandScore), weighted: 0, tone: "aurora" },
-    { label: "Opportunity gap", weight: 20, score: Math.round(opportunityScore), weighted: 0, tone: "glow" },
-    { label: "Profit potential", weight: 20, score: Math.round(profitScore), weighted: 0, tone: "amber" },
-    { label: "Risk safety (100 − risk)", weight: 20, score: Math.round(riskSafety), weighted: 0, tone: "rose" },
-    { label: "Competition level", weight: 15, score: Math.round(competitionScore), weighted: 0, tone: "aurora" },
-  ].map((f) => ({ ...f, weighted: +((f.score * f.weight) / 100).toFixed(2) }));
+  const rawFactors: Omit<FactorRow, "weighted">[] = [
+    { label: "Market demand", weight: 25, score: Math.round(demandScore), tone: "aurora" },
+    { label: "Opportunity gap", weight: 20, score: Math.round(opportunityScore), tone: "glow" },
+    { label: "Profit potential", weight: 20, score: Math.round(profitScore), tone: "amber" },
+    { label: "Risk safety (100 − risk)", weight: 20, score: Math.round(riskSafety), tone: "rose" },
+    { label: "Competition level", weight: 15, score: Math.round(competitionScore), tone: "aurora" },
+  ];
+  const factors: FactorRow[] = rawFactors.map((f) => ({
+    ...f,
+    weighted: +((f.score * f.weight) / 100).toFixed(2),
+  }));
 
   const total = +factors.reduce((s, f) => s + f.weighted, 0).toFixed(2);
   const band =
