@@ -324,7 +324,7 @@ function Index() {
 
         {/* RIGHT: metric cards */}
         <section className="lg:col-span-3">
-          <div className="grid h-full grid-rows-3 gap-5">
+          <div className="grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
             <div className="glass rounded-[18px] p-4 ring-1 ring-line">
               <p className="text-[11px] uppercase tracking-wider text-mist/50">Demand index</p>
               <p className="mt-2 font-display text-2xl font-semibold text-white">
