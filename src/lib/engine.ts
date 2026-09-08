@@ -102,8 +102,8 @@ export interface Feasibility {
 }
 
 export function computeFeasibility(i: Inputs): Feasibility {
-  const category = CATEGORIES.find((c) => c.key === i.category) ?? CATEGORIES[0];
-  const den = DENSITIES.find((d) => d.key === i.density) ?? DENSITIES[0];
+  const category: Category = CATEGORIES.find((c) => c.key === i.category) ?? CATEGORIES[0]!;
+  const den = DENSITIES.find((d) => d.key === i.density) ?? DENSITIES[0]!;
   const population = den.population;
   const households = Math.round(population / 4.6);
   const competitors = Math.max(1, Math.round((population / 10000) * category.competitorsPer10k));
