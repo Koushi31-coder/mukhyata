@@ -18,8 +18,8 @@ export interface Competitor {
   address: string;
   lat: number;
   lng: number;
-  rating?: number;
-  reviews?: number;
+  rating?: number | undefined;
+  reviews?: number | undefined;
   distanceKm: number;
 }
 
