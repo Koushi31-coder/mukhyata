@@ -552,6 +552,89 @@ function Index() {
             </div>
           </div>
         </section>
+
+        <section className="lg:col-span-12">
+          <div className="glass rounded-[18px] p-5 ring-1 ring-line">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-glow/70">
+                  Module 3 · Competitor map
+                </p>
+                <h3 className="mt-1.5 font-display text-sm font-semibold text-white/90">
+                  Nearby {f.category.label.toLowerCase()} around {inputs.village}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="field w-auto"
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(Number(e.target.value))}
+                >
+                  {[5, 10, 20, 35, 50].map((r) => (
+                    <option key={r} value={r}>
+                      {r} km radius
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={scan}
+                  disabled={scanning}
+                  className="rounded-[10px] bg-aurora/15 px-4 py-2 text-xs font-medium uppercase tracking-wider text-aurora ring-1 ring-aurora/30 transition-colors hover:bg-aurora/25 disabled:opacity-50"
+                >
+                  {scanning ? "Scanning…" : "Scan area"}
+                </button>
+              </div>
+            </div>
+
+            {mapError ? (
+              <p className="mt-4 rounded-[10px] bg-rose/10 p-3 text-xs text-rose ring-1 ring-rose/25">
+                {mapError}
+              </p>
+            ) : null}
+
+            {mapData ? (
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <CompetitorMap data={mapData} />
+                  <p className="mt-2 text-[11px] text-mist/50">
+                    Centred on {mapData.placeLabel} · {mapData.competitors.length} matching
+                    business{mapData.competitors.length === 1 ? "" : "es"} found within{" "}
+                    {mapData.radiusKm} km (Google Maps data).
+                  </p>
+                </div>
+                <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                  {mapData.competitors.length === 0 ? (
+                    <p className="text-xs text-mist/60">
+                      No listed competitors found in this radius — treat as an unserved pocket, or
+                      widen the radius.
+                    </p>
+                  ) : (
+                    mapData.competitors.map((c) => (
+                      <div key={c.id} className="rounded-[10px] bg-ink/40 p-3 ring-1 ring-line">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-white/90">{c.name}</p>
+                          <span className="shrink-0 text-[11px] text-amber">{c.distanceKm} km</span>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-mist/60">{c.address}</p>
+                        {c.rating ? (
+                          <p className="mt-1 text-[11px] text-mist/70">
+                            ★ {c.rating} · {c.reviews ?? 0} reviews
+                          </p>
+                        ) : null}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-xs text-mist/60">
+                Press “Scan area” to plot real businesses in the same category around{" "}
+                {inputs.village}, {inputs.district}.
+              </p>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );
