@@ -12,6 +12,15 @@ const CATEGORY_QUERY: Record<string, string> = {
   teastall: "tea stall snacks shop",
 };
 
+const SUPPLIER_QUERY: Record<string, string> = {
+  dairy: "cattle feed and dairy equipment supplier",
+  poultry: "poultry feed supplier wholesale",
+  kirana: "wholesale grocery distributor",
+  flourmill: "grain wholesale mandi wheat supplier",
+  tailoring: "wholesale cloth fabric supplier",
+  teastall: "wholesale tea and snacks distributor",
+};
+
 export interface Competitor {
   id: string;
   name: string;
@@ -28,6 +37,7 @@ export interface CompetitorResult {
   placeLabel: string;
   radiusKm: number;
   competitors: Competitor[];
+  suppliers: Competitor[];
 }
 
 function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
