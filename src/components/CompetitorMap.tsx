@@ -95,30 +95,42 @@ export default function CompetitorMap({ data }: { data: CompetitorResult }) {
 
         const bounds = new g.LatLngBounds();
         bounds.extend(data.center);
-        data.competitors.forEach((c) => {
-          const marker = new g.Marker({
-            map,
-            position: { lat: c.lat, lng: c.lng },
-            title: c.name,
-            icon: {
-              path: g.SymbolPath.CIRCLE,
-              scale: 6,
-              fillColor: "#f5b85e",
-              fillOpacity: 1,
-              strokeColor: "#0a0c14",
-              strokeWeight: 1.5,
-            },
+
+        const addPins = (
+          list: typeof data.competitors,
+          color: string,
+          scale: number,
+          kind: string,
+        ) => {
+          list.forEach((c) => {
+            const marker = new g.Marker({
+              map,
+              position: { lat: c.lat, lng: c.lng },
+              title: c.name,
+              icon: {
+                path: g.SymbolPath.CIRCLE,
+                scale,
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: "#0a0c14",
+                strokeWeight: 1.5,
+              },
+            });
+            marker.addListener("click", () => {
+              info.setContent(
+                `<div style="font-family:Inter,sans-serif;font-size:12px;color:#0a0c14"><strong>${c.name}</strong><br/>${kind} · ${c.distanceKm} km${c.rating ? ` · ★ ${c.rating} (${c.reviews ?? 0})` : ""}<br/>${c.address}</div>`,
+              );
+              info.open({ map, anchor: marker });
+            });
+            markersRef.current.push(marker);
+            bounds.extend({ lat: c.lat, lng: c.lng });
           });
-          marker.addListener("click", () => {
-            info.setContent(
-              `<div style="font-family:Inter,sans-serif;font-size:12px;color:#0a0c14"><strong>${c.name}</strong><br/>${c.distanceKm} km${c.rating ? ` · ★ ${c.rating} (${c.reviews ?? 0})` : ""}<br/>${c.address}</div>`,
-            );
-            info.open({ map, anchor: marker });
-          });
-          markersRef.current.push(marker);
-          bounds.extend({ lat: c.lat, lng: c.lng });
-        });
-        if (data.competitors.length > 0) map.fitBounds(bounds, 48);
+        };
+
+        addPins(data.competitors, "#f5b85e", 6, "Competitor");
+        addPins(data.suppliers ?? [], "#7dd3fc", 6.5, "Supplier");
+
+        if (data.competitors.length + (data.suppliers?.length ?? 0) > 0) map.fitBounds(bounds, 48);
       })
       .catch(() => {});
     return () => {

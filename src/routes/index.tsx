@@ -16,6 +16,8 @@ import {
   DEFAULT_INPUTS,
   computeFeasibility,
   routeSchemes,
+  rankAlternatives,
+  SCHEME_GUIDES,
   inr,
   type Inputs,
   type CategoryKey,
@@ -80,6 +82,8 @@ function Index() {
 
   const f = useMemo(() => computeFeasibility(inputs), [inputs]);
   const matches = useMemo(() => routeSchemes(inputs, f), [inputs, f]);
+  const alternatives = useMemo(() => rankAlternatives(inputs, f), [inputs, f]);
+  const better = alternatives.filter((a) => a.delta > 0.5);
   const [selected, setSelected] = useState<string | null>(null);
   const active =
     matches.find((m) => m.scheme.code === selected) ?? matches[0]!;
@@ -426,6 +430,58 @@ function Index() {
           </div>
         </section>
 
+        {/* ALTERNATIVE CATEGORIES */}
+        <section className="lg:col-span-12">
+          <div className="glass rounded-[18px] p-5 ring-1 ring-line">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-display text-sm font-semibold text-white/90">
+                  Better-scoring alternatives in {inputs.village}
+                </h2>
+                <p className="mt-1 text-xs text-mist/60">
+                  Same location, capital, revenue and cost — re-scored for every other category.
+                </p>
+              </div>
+              <span className="text-[11px] text-mist/50">
+                Current: {f.category.label} · {f.total.toFixed(1)}
+              </span>
+            </div>
+
+            {better.length === 0 ? (
+              <p className="mt-4 rounded-[10px] bg-aurora/10 p-3 text-xs text-aurora ring-1 ring-aurora/25">
+                {f.category.label} already scores highest of the {CATEGORIES.length} categories on
+                these inputs — no stronger alternative found.
+              </p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {better.map((a) => (
+                  <button
+                    key={a.category.key}
+                    type="button"
+                    onClick={() => set("category", a.category.key)}
+                    className="rounded-[10px] bg-ink/40 p-3.5 text-left ring-1 ring-line transition-colors hover:ring-aurora/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium text-white/90">{a.category.label}</p>
+                      <span className="shrink-0 rounded-full bg-aurora/12 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-aurora">
+                        +{a.delta.toFixed(1)}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 font-display text-lg font-semibold text-white">
+                      {a.total.toFixed(1)}
+                      <span className="ml-1.5 text-[11px] font-normal text-mist/60">{a.band}</span>
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-mist/70">{a.reason}</p>
+                    <p className="mt-2 text-[10px] uppercase tracking-wider text-glow/70">
+                      Tap to re-score with this category
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* MODULE 2 */}
         <section className="lg:col-span-12">
           <div className="mb-5 flex items-end justify-between">
@@ -589,6 +645,81 @@ function Index() {
               </div>
             </div>
           </div>
+
+          {/* APPLICATION GUIDANCE */}
+          {(() => {
+            const guide = SCHEME_GUIDES[active.scheme.code];
+            if (!guide) return null;
+            return (
+              <div className="glass mt-5 rounded-[18px] p-5 ring-1 ring-line">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-glow/70">
+                      How to apply
+                    </p>
+                    <h3 className="mt-1.5 font-display text-base font-semibold text-white">
+                      {active.scheme.name} · application guide
+                    </h3>
+                    <p className="mt-1 text-xs text-mist/60">
+                      {guide.portal} · {guide.processingWeeks}
+                    </p>
+                  </div>
+                  <a
+                    href={guide.portalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-[10px] bg-aurora/15 px-4 py-2 text-xs font-medium uppercase tracking-wider text-aurora ring-1 ring-aurora/30 transition-colors hover:bg-aurora/25"
+                  >
+                    Open official portal
+                  </a>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <div className="lg:col-span-2">
+                    <p className="text-[11px] uppercase tracking-wider text-mist/50">
+                      Step-by-step process
+                    </p>
+                    <ol className="mt-3 space-y-2.5">
+                      {guide.steps.map((s, idx) => (
+                        <li key={s} className="flex gap-3">
+                          <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-aurora/12 text-[10px] font-semibold text-aurora ring-1 ring-aurora/25">
+                            {idx + 1}
+                          </span>
+                          <span className="text-[13px] leading-relaxed text-mist/80">{s}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="rounded-[10px] bg-ink/40 p-3.5 ring-1 ring-line">
+                      <p className="text-[11px] uppercase tracking-wider text-amber">
+                        Documents to keep ready
+                      </p>
+                      <ul className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-mist/75">
+                        {guide.documents.map((d) => (
+                          <li key={d}>· {d}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="rounded-[10px] bg-ink/40 p-3.5 ring-1 ring-line">
+                      <p className="text-[11px] uppercase tracking-wider text-glow">
+                        Field officer tips
+                      </p>
+                      <ul className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-mist/75">
+                        {guide.tips.map((t) => (
+                          <li key={t}>· {t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-4 text-[11px] text-mist/50">
+                  Steps reflect the published scheme process; confirm current rules and ceilings on
+                  the official portal before submission.
+                </p>
+              </div>
+            );
+          })()}
         </section>
 
         <section className="lg:col-span-12">
@@ -642,6 +773,9 @@ function Index() {
                   </p>
                 </div>
                 <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                  <p className="text-[10px] uppercase tracking-wider text-amber">
+                    Competitors ({mapData.competitors.length})
+                  </p>
                   {mapData.competitors.length === 0 ? (
                     <p className="text-xs text-mist/60">
                       No listed competitors found in this radius — treat as an unserved pocket, or
@@ -660,6 +794,35 @@ function Index() {
                             ★ {c.rating} · {c.reviews ?? 0} reviews
                           </p>
                         ) : null}
+                      </div>
+                    ))
+                  )}
+
+                  <p className="pt-2 text-[10px] uppercase tracking-wider text-glow">
+                    Suppliers ({mapData.suppliers.length})
+                  </p>
+                  {mapData.suppliers.length === 0 ? (
+                    <p className="text-xs text-mist/60">
+                      No listed suppliers nearby — plan for sourcing from the district town.
+                    </p>
+                  ) : (
+                    mapData.suppliers.map((s) => (
+                      <div
+                        key={s.id}
+                        className="rounded-[10px] bg-ink/40 p-3 ring-1 ring-glow/25"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-white/90">{s.name}</p>
+                          <span className="shrink-0 text-[11px] text-glow">{s.distanceKm} km</span>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-mist/60">{s.address}</p>
+                        <button
+                          type="button"
+                          onClick={() => set("supplierDistanceKm", Math.round(s.distanceKm))}
+                          className="mt-2 rounded-[8px] px-2 py-1 text-[10px] uppercase tracking-wider text-glow ring-1 ring-glow/30 transition-colors hover:bg-glow/10"
+                        >
+                          Use {Math.round(s.distanceKm)} km in scoring
+                        </button>
                       </div>
                     ))
                   )}

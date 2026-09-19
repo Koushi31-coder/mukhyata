@@ -12,6 +12,15 @@ const CATEGORY_QUERY: Record<string, string> = {
   teastall: "tea stall snacks shop",
 };
 
+const SUPPLIER_QUERY: Record<string, string> = {
+  dairy: "cattle feed and dairy equipment supplier",
+  poultry: "poultry feed supplier wholesale",
+  kirana: "wholesale grocery distributor",
+  flourmill: "grain wholesale mandi wheat supplier",
+  tailoring: "wholesale cloth fabric supplier",
+  teastall: "wholesale tea and snacks distributor",
+};
+
 export interface Competitor {
   id: string;
   name: string;
@@ -28,6 +37,7 @@ export interface CompetitorResult {
   placeLabel: string;
   radiusKm: number;
   competitors: Competitor[];
+  suppliers: Competitor[];
 }
 
 function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -82,59 +92,77 @@ export const findCompetitors = createServerFn({ method: "POST" })
     if (!hit) throw new Error(`Could not locate "${address}" on the map.`);
     const center = { lat: hit.geometry.location.lat, lng: hit.geometry.location.lng };
 
-    const textQuery = `${CATEGORY_QUERY[data.category] ?? data.category} near ${address}`;
-    const placesRes = await fetch(`${GATEWAY}/places/v1/places:searchText`, {
-      method: "POST",
-      headers: {
-        ...headers,
-        "Content-Type": "application/json",
-        "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount",
-      },
-      body: JSON.stringify({
-        textQuery,
-        maxResultCount: 20,
-        locationBias: {
-          circle: { center: { latitude: center.lat, longitude: center.lng }, radius: data.radiusKm * 1000 },
+    const search = async (textQuery: string, label: string, maxKm: number): Promise<Competitor[]> => {
+      const res = await fetch(`${GATEWAY}/places/v1/places:searchText`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+          "X-Goog-FieldMask":
+            "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount",
         },
-      }),
-    });
-    if (!placesRes.ok) {
-      throw new Error(`Competitor search failed (${placesRes.status}): ${await placesRes.text()}`);
-    }
-    const places = (await placesRes.json()) as {
-      places?: Array<{
-        id: string;
-        displayName?: { text?: string };
-        formattedAddress?: string;
-        location?: { latitude: number; longitude: number };
-        rating?: number;
-        userRatingCount?: number;
-      }>;
+        body: JSON.stringify({
+          textQuery,
+          maxResultCount: 20,
+          locationBias: {
+            circle: {
+              center: { latitude: center.lat, longitude: center.lng },
+              radius: Math.min(maxKm, 50) * 1000,
+            },
+          },
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`${label} search failed (${res.status}): ${await res.text()}`);
+      }
+      const json = (await res.json()) as {
+        places?: Array<{
+          id: string;
+          displayName?: { text?: string };
+          formattedAddress?: string;
+          location?: { latitude: number; longitude: number };
+          rating?: number;
+          userRatingCount?: number;
+        }>;
+      };
+      return (json.places ?? [])
+        .filter((p) => p.location)
+        .map((p) => {
+          const pos = { lat: p.location!.latitude, lng: p.location!.longitude };
+          return {
+            id: p.id,
+            name: p.displayName?.text ?? "Unnamed business",
+            address: p.formattedAddress ?? "",
+            lat: pos.lat,
+            lng: pos.lng,
+            rating: p.rating,
+            reviews: p.userRatingCount,
+            distanceKm: +haversine(center, pos).toFixed(1),
+          };
+        })
+        .filter((c) => c.distanceKm <= maxKm)
+        .sort((a, b) => a.distanceKm - b.distanceKm);
     };
 
-    const competitors: Competitor[] = (places.places ?? [])
-      .filter((p) => p.location)
-      .map((p) => {
-        const pos = { lat: p.location!.latitude, lng: p.location!.longitude };
-        return {
-          id: p.id,
-          name: p.displayName?.text ?? "Unnamed business",
-          address: p.formattedAddress ?? "",
-          lat: pos.lat,
-          lng: pos.lng,
-          rating: p.rating,
-          reviews: p.userRatingCount,
-          distanceKm: +haversine(center, pos).toFixed(1),
-        };
-      })
-      .filter((c) => c.distanceKm <= data.radiusKm)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+    const supplierRadius = Math.min(Math.max(data.radiusKm * 2, 25), 50);
+    const [competitors, suppliers] = await Promise.all([
+      search(
+        `${CATEGORY_QUERY[data.category] ?? data.category} near ${address}`,
+        "Competitor",
+        data.radiusKm,
+      ),
+      search(
+        `${SUPPLIER_QUERY[data.category] ?? "wholesale supplier"} near ${address}`,
+        "Supplier",
+        supplierRadius,
+      ).catch(() => [] as Competitor[]),
+    ]);
 
     return {
       center,
       placeLabel: hit.formatted_address,
       radiusKm: data.radiusKm,
       competitors,
+      suppliers: suppliers.slice(0, 10),
     };
   });
