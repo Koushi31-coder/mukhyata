@@ -302,3 +302,172 @@ export function routeSchemes(i: Inputs, f: Feasibility): SchemeMatch[] {
 
 export const inr = (n: number) =>
   "₹" + Math.round(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+/* ---------------- Alternative category recommendations ---------------- */
+
+export interface Alternative {
+  category: Category;
+  total: number;
+  band: string;
+  delta: number;
+  reason: string;
+}
+
+/** Re-scores every other category on the same location/capital/cost inputs. */
+export function rankAlternatives(i: Inputs, current: Feasibility): Alternative[] {
+  return CATEGORIES.filter((c) => c.key !== i.category)
+    .map((c) => {
+      const alt = computeFeasibility({ ...i, category: c.key });
+      const reason =
+        alt.demandScore > current.demandScore && alt.competitionScore > current.competitionScore
+          ? `Higher demand (${Math.round(alt.demandScore)}) with lighter competition (${alt.competitors} units).`
+          : alt.competitionScore > current.competitionScore
+            ? `Only ${alt.competitors} competing unit${alt.competitors === 1 ? "" : "s"} for ${alt.population.toLocaleString("en-IN")} residents.`
+            : alt.riskSafety > current.riskSafety
+              ? `Lower risk load (${Math.round(alt.riskScore)} vs ${Math.round(current.riskScore)}). ${c.seasonal}.`
+              : `Demand index ${Math.round(alt.demandScore)}/100 · ${c.seasonal}.`;
+      return {
+        category: c,
+        total: alt.total,
+        band: alt.band,
+        delta: +(alt.total - current.total).toFixed(2),
+        reason,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+}
+
+/* ---------------- Scheme application guidance ---------------- */
+
+export interface SchemeGuide {
+  portal: string;
+  portalUrl: string;
+  processingWeeks: string;
+  steps: string[];
+  documents: string[];
+  tips: string[];
+}
+
+export const SCHEME_GUIDES: Record<string, SchemeGuide> = {
+  PMEGP: {
+    portal: "KVIC PMEGP e-Portal",
+    portalUrl: "https://www.kviconline.gov.in/pmegpeportal/",
+    processingWeeks: "8–14 weeks from application to first disbursement",
+    steps: [
+      "Register as an individual applicant on the PMEGP e-Portal and verify your mobile and Aadhaar.",
+      "Fill the online application: unit location, activity, project cost and employment to be generated.",
+      "Upload the detailed project report (DPR) with the cost break-up and projected cash flow used here.",
+      "Application is scored by the District Task Force Committee (DTFC); attend the interview with the DPR.",
+      "On DTFC approval the file goes to your chosen financing bank branch for appraisal and sanction.",
+      "Complete the EDP training (online, ~10 days) — mandatory before margin money is released.",
+      "Bank disburses the loan; KVIC parks the margin-money subsidy in a lock-in for 3 years.",
+    ],
+    documents: [
+      "Aadhaar and PAN",
+      "Passport photo and caste/special-category certificate if claiming the higher subsidy",
+      "Detailed project report with cost estimate and quotations",
+      "Proof of place of business (rent agreement / ownership)",
+      "Education or skill certificate (needed above ₹10 lakh project cost)",
+    ],
+    tips: [
+      "Rural units get 35% margin money for special categories, 25% for general.",
+      "Do not start capital spending before DTFC approval — prior expenditure is not reimbursed.",
+    ],
+  },
+  NBCFDC: {
+    portal: "NBCFDC via State Channelising Agency (SCA)",
+    portalUrl: "https://nbcfdc.gov.in/",
+    processingWeeks: "6–12 weeks through the State Channelising Agency",
+    steps: [
+      "Confirm you belong to a notified backward class and your family income is within the scheme ceiling.",
+      "Obtain the caste certificate and income certificate from the tehsildar / revenue office.",
+      "Apply to your State Channelising Agency (SCA) — NBCFDC lends only through the SCA, not directly.",
+      "Submit the project proposal with cost, revenue and repayment schedule.",
+      "SCA verifies eligibility and forwards a consolidated demand to NBCFDC.",
+      "On sanction, sign the loan agreement with the SCA and furnish the required surety/guarantor.",
+      "Funds are released by the SCA in tranches against purchase bills.",
+    ],
+    documents: [
+      "Caste certificate (backward class)",
+      "Family income certificate",
+      "Aadhaar, PAN and bank passbook",
+      "Project proposal with quotations",
+      "Two guarantors or acceptable security as required by the SCA",
+    ],
+    tips: [
+      "Interest is concessional (around 6% p.a.) — usually the cheapest route if you are eligible.",
+      "Ask your SCA for the current annual income ceiling before applying.",
+    ],
+  },
+  "MUDRA-K": {
+    portal: "Any bank / NBFC / MFI · Jan Samarth portal",
+    portalUrl: "https://www.jansamarth.in/",
+    processingWeeks: "2–5 weeks; no collateral required",
+    steps: [
+      "Pick the Kishor slab (₹50,000–₹5 lakh) and prepare a one-page business plan.",
+      "Apply at your bank branch or online through Jan Samarth / the bank's MUDRA page.",
+      "Submit KYC, business proof and the cost of machinery/stock you want financed.",
+      "Bank appraises the cash flow — show the monthly surplus figure from this report.",
+      "On sanction, collect the MUDRA card / loan account for working-capital drawdowns.",
+      "Repay by EMI; timely repayment raises your limit to the Tarun slab later.",
+    ],
+    documents: [
+      "Aadhaar, PAN, passport photos",
+      "Business address and identity proof",
+      "Quotations for machinery or stock to be purchased",
+      "Last 6 months bank statement if an existing account holder",
+      "Caste certificate if applicable",
+    ],
+    tips: [
+      "No collateral and no processing fee for most public-sector banks under Shishu/Kishor.",
+      "Banks cannot refuse without written reasons — escalate to the branch head if stalled.",
+    ],
+  },
+  NLM: {
+    portal: "NLM–EDEG online portal (DAHD)",
+    portalUrl: "https://nlm.udyamimitra.in/",
+    processingWeeks: "10–16 weeks including state-level scrutiny",
+    steps: [
+      "Register on the NLM portal and choose the entrepreneurship component (poultry / dairy).",
+      "Upload the DPR with shed layout, bird/animal numbers, feed plan and marketing tie-up.",
+      "Attach the bank's in-principle loan sanction letter — mandatory for the subsidy claim.",
+      "State Implementing Agency inspects the site and recommends the proposal.",
+      "DAHD project approval committee sanctions the 50% capital subsidy (up to the ceiling).",
+      "Subsidy is released in two instalments against physical progress verified on site.",
+    ],
+    documents: [
+      "Detailed project report with shed/equipment costing",
+      "Land ownership or long-term lease document",
+      "Bank in-principle sanction letter",
+      "Training certificate in poultry / dairy management",
+      "Aadhaar, PAN, photographs and cancelled cheque",
+    ],
+    tips: [
+      "Subsidy is back-ended — arrange bridge finance for construction.",
+      "Site inspection photos must match the DPR layout exactly.",
+    ],
+  },
+  AIF: {
+    portal: "Agri Infrastructure Fund portal (MoA&FW)",
+    portalUrl: "https://agriinfra.dac.gov.in/",
+    processingWeeks: "6–10 weeks; interest subvention of 3% for 7 years",
+    steps: [
+      "Register on the AIF portal with Aadhaar-linked mobile and select the post-harvest activity.",
+      "Enter project details and upload the DPR; the portal auto-routes it to your chosen bank.",
+      "Bank appraises and sanctions the term loan under AIF.",
+      "District-level monitoring committee validates the project's eligibility.",
+      "3% interest subvention and CGTMSE fee cover are credited against the loan account.",
+      "Submit periodic progress reports on the portal to keep the subvention active.",
+    ],
+    documents: [
+      "DPR with post-harvest infrastructure costing",
+      "Land records / lease deed",
+      "Aadhaar, PAN, GST registration if applicable",
+      "Bank account details and past financials if an existing business",
+    ],
+    tips: [
+      "Subvention applies on loans up to ₹2 crore per project location.",
+      "Eligible only for post-harvest or community farming assets — not for trading stock.",
+    ],
+  },
+};
