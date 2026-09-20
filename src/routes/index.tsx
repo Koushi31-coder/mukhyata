@@ -13,7 +13,6 @@ const CompetitorMap = (props: { data: CompetitorResult }) => (
 import {
   CATEGORIES,
   DENSITIES,
-  DEFAULT_INPUTS,
   computeFeasibility,
   routeSchemes,
   rankAlternatives,
@@ -74,19 +73,47 @@ function Field({
   );
 }
 
+type Draft = Omit<Inputs, "category" | "density"> & {
+  category: CategoryKey | "";
+  density: Density | "";
+};
+
+const EMPTY_INPUTS: Draft = {
+  village: "",
+  block: "",
+  district: "",
+  category: "",
+  density: "",
+  capital: 0,
+  revenue: 0,
+  operatingCost: 0,
+  supplierDistanceKm: 0,
+};
+
 function Index() {
-  const [inputs, setInputs] = useState<Inputs>(DEFAULT_INPUTS);
-  const set = <K extends keyof Inputs>(k: K, v: Inputs[K]) =>
-    setInputs((p) => ({ ...p, [k]: v }));
+  const [draft, setDraft] = useState<Draft>(EMPTY_INPUTS);
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
+    setDraft((p) => ({ ...p, [k]: v }));
   const num = (v: string) => (v === "" ? 0 : Math.max(0, Number(v.replace(/[^\d.]/g, ""))));
 
-  const f = useMemo(() => computeFeasibility(inputs), [inputs]);
-  const matches = useMemo(() => routeSchemes(inputs, f), [inputs, f]);
-  const alternatives = useMemo(() => rankAlternatives(inputs, f), [inputs, f]);
-  const better = alternatives.filter((a) => a.delta > 0.5);
+  const missing: string[] = [];
+  if (!draft.village.trim()) missing.push("Village");
+  if (!draft.district.trim()) missing.push("District");
+  if (!draft.category) missing.push("Business category");
+  if (!draft.density) missing.push("Settlement type");
+  if (draft.capital <= 0) missing.push("Margin capital");
+  if (draft.revenue <= 0) missing.push("Monthly revenue");
+  if (draft.operatingCost <= 0) missing.push("Operating cost");
+  const ready = missing.length === 0;
+
+  const f = useMemo(() => (ready ? computeFeasibility(draft as Inputs) : null), [draft, ready]);
+  const matches = useMemo(() => (f ? routeSchemes(draft as Inputs, f) : null), [draft, f]);
+  const alternatives = useMemo(() => (f ? rankAlternatives(draft as Inputs, f) : null), [draft, f]);
+  const better = alternatives?.filter((a) => a.delta > 0.5) ?? [];
   const [selected, setSelected] = useState<string | null>(null);
-  const active =
-    matches.find((m) => m.scheme.code === selected) ?? matches[0]!;
+  const active = matches
+    ? (matches.find((m) => m.scheme.code === selected) ?? matches[0]!)
+    : null;
 
   const [radiusKm, setRadiusKm] = useState(10);
   const [mapData, setMapData] = useState<CompetitorResult | null>(null);
@@ -99,10 +126,10 @@ function Index() {
     try {
       const res = await findCompetitors({
         data: {
-          village: inputs.village,
-          block: inputs.block,
-          district: inputs.district,
-          category: inputs.category,
+          village: draft.village,
+          block: draft.block,
+          district: draft.district,
+          category: draft.category as CategoryKey,
           radiusKm,
         },
       });
@@ -116,8 +143,8 @@ function Index() {
     }
   };
 
-  const gaugeDeg = (f.total / 100) * 360;
-  const dscrPos = Math.min(Math.max(active.dscr / 2, 0), 1) * 100;
+  const gaugeDeg = ((f?.total ?? 0) / 100) * 360;
+  const dscrPos = Math.min(Math.max(active?.dscr ?? 0, 0), 1) * 100;
 
   return (
     <div className="relative min-h-screen bg-ink text-mist font-sans antialiased selection:bg-aurora/30">
@@ -142,7 +169,7 @@ function Index() {
             <span className="size-1.5 rounded-full bg-aurora" />
             <span className="text-mist/80">
               Ref FEAS-{inputs.district.slice(0, 3).toUpperCase() || "GEN"}-
-              {String(Math.round(f.total * 100)).padStart(4, "0")}
+              {String(Math.round((f?.total ?? 0) * 100)).padStart(4, "0")}
             </span>
           </div>
         </div>
