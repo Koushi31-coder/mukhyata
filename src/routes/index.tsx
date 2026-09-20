@@ -13,7 +13,6 @@ const CompetitorMap = (props: { data: CompetitorResult }) => (
 import {
   CATEGORIES,
   DENSITIES,
-  DEFAULT_INPUTS,
   computeFeasibility,
   routeSchemes,
   rankAlternatives,
@@ -74,19 +73,47 @@ function Field({
   );
 }
 
+type Draft = Omit<Inputs, "category" | "density"> & {
+  category: CategoryKey | "";
+  density: Density | "";
+};
+
+const EMPTY_INPUTS: Draft = {
+  village: "",
+  block: "",
+  district: "",
+  category: "",
+  density: "",
+  capital: 0,
+  revenue: 0,
+  operatingCost: 0,
+  supplierDistanceKm: 0,
+};
+
 function Index() {
-  const [inputs, setInputs] = useState<Inputs>(DEFAULT_INPUTS);
-  const set = <K extends keyof Inputs>(k: K, v: Inputs[K]) =>
-    setInputs((p) => ({ ...p, [k]: v }));
+  const [draft, setDraft] = useState<Draft>(EMPTY_INPUTS);
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
+    setDraft((p) => ({ ...p, [k]: v }));
   const num = (v: string) => (v === "" ? 0 : Math.max(0, Number(v.replace(/[^\d.]/g, ""))));
 
-  const f = useMemo(() => computeFeasibility(inputs), [inputs]);
-  const matches = useMemo(() => routeSchemes(inputs, f), [inputs, f]);
-  const alternatives = useMemo(() => rankAlternatives(inputs, f), [inputs, f]);
-  const better = alternatives.filter((a) => a.delta > 0.5);
+  const missing: string[] = [];
+  if (!draft.village.trim()) missing.push("Village");
+  if (!draft.district.trim()) missing.push("District");
+  if (!draft.category) missing.push("Business category");
+  if (!draft.density) missing.push("Settlement type");
+  if (draft.capital <= 0) missing.push("Margin capital");
+  if (draft.revenue <= 0) missing.push("Monthly revenue");
+  if (draft.operatingCost <= 0) missing.push("Operating cost");
+  const ready = missing.length === 0;
+
+  const f = useMemo(() => (ready ? computeFeasibility(draft as Inputs) : null), [draft, ready]);
+  const matches = useMemo(() => (f ? routeSchemes(draft as Inputs, f) : null), [draft, f]);
+  const alternatives = useMemo(() => (f ? rankAlternatives(draft as Inputs, f) : null), [draft, f]);
+  const better = alternatives?.filter((a) => a.delta > 0.5) ?? [];
   const [selected, setSelected] = useState<string | null>(null);
-  const active =
-    matches.find((m) => m.scheme.code === selected) ?? matches[0]!;
+  const active = matches
+    ? (matches.find((m) => m.scheme.code === selected) ?? matches[0]!)
+    : null;
 
   const [radiusKm, setRadiusKm] = useState(10);
   const [mapData, setMapData] = useState<CompetitorResult | null>(null);
@@ -99,10 +126,10 @@ function Index() {
     try {
       const res = await findCompetitors({
         data: {
-          village: inputs.village,
-          block: inputs.block,
-          district: inputs.district,
-          category: inputs.category,
+          village: draft.village,
+          block: draft.block,
+          district: draft.district,
+          category: draft.category as CategoryKey,
           radiusKm,
         },
       });
@@ -116,8 +143,8 @@ function Index() {
     }
   };
 
-  const gaugeDeg = (f.total / 100) * 360;
-  const dscrPos = Math.min(Math.max(active.dscr / 2, 0), 1) * 100;
+  const gaugeDeg = ((f?.total ?? 0) / 100) * 360;
+  const dscrPos = Math.min(Math.max(active?.dscr ?? 0, 0), 1) * 100;
 
   return (
     <div className="relative min-h-screen bg-ink text-mist font-sans antialiased selection:bg-aurora/30">
@@ -141,8 +168,8 @@ function Index() {
           <div className="flex items-center gap-2 rounded-full bg-panel/60 px-3 py-1.5 ring-1 ring-line">
             <span className="size-1.5 rounded-full bg-aurora" />
             <span className="text-mist/80">
-              Ref FEAS-{inputs.district.slice(0, 3).toUpperCase() || "GEN"}-
-              {String(Math.round(f.total * 100)).padStart(4, "0")}
+              Ref FEAS-{draft.district.slice(0, 3).toUpperCase() || "GEN"}-
+              {String(Math.round((f?.total ?? 0) * 100)).padStart(4, "0")}
             </span>
           </div>
         </div>
@@ -179,21 +206,21 @@ function Index() {
                 <Field label="Village">
                   <input
                     className="field"
-                    value={inputs.village}
+                    value={draft.village}
                     onChange={(e) => set("village", e.target.value)}
                   />
                 </Field>
                 <Field label="Block">
                   <input
                     className="field"
-                    value={inputs.block}
+                    value={draft.block}
                     onChange={(e) => set("block", e.target.value)}
                   />
                 </Field>
                 <Field label="District">
                   <input
                     className="field"
-                    value={inputs.district}
+                    value={draft.district}
                     onChange={(e) => set("district", e.target.value)}
                   />
                 </Field>
@@ -202,9 +229,12 @@ function Index() {
               <Field label="Business category">
                 <select
                   className="field"
-                  value={inputs.category}
-                  onChange={(e) => set("category", e.target.value as CategoryKey)}
+                  value={draft.category}
+                  onChange={(e) => set("category", e.target.value as Draft["category"])}
                 >
+                  <option value="" disabled>
+                    Select a category
+                  </option>
                   {CATEGORIES.map((c) => (
                     <option key={c.key} value={c.key}>
                       {c.label}
@@ -216,9 +246,12 @@ function Index() {
               <Field label="Settlement type">
                 <select
                   className="field"
-                  value={inputs.density}
-                  onChange={(e) => set("density", e.target.value as Density)}
+                  value={draft.density}
+                  onChange={(e) => set("density", e.target.value as Draft["density"])}
                 >
+                  <option value="" disabled>
+                    Select settlement type
+                  </option>
                   {DENSITIES.map((d) => (
                     <option key={d.key} value={d.key}>
                       {d.label}
@@ -232,7 +265,7 @@ function Index() {
                   <input
                     className="field"
                     inputMode="numeric"
-                    value={inputs.capital}
+                    value={draft.capital || ""}
                     onChange={(e) => set("capital", num(e.target.value))}
                   />
                 </Field>
@@ -240,7 +273,7 @@ function Index() {
                   <input
                     className="field"
                     inputMode="numeric"
-                    value={inputs.supplierDistanceKm}
+                    value={draft.supplierDistanceKm || ""}
                     onChange={(e) => set("supplierDistanceKm", num(e.target.value))}
                   />
                 </Field>
@@ -248,7 +281,7 @@ function Index() {
                   <input
                     className="field"
                     inputMode="numeric"
-                    value={inputs.revenue}
+                    value={draft.revenue || ""}
                     onChange={(e) => set("revenue", num(e.target.value))}
                   />
                 </Field>
@@ -256,7 +289,7 @@ function Index() {
                   <input
                     className="field"
                     inputMode="numeric"
-                    value={inputs.operatingCost}
+                    value={draft.operatingCost || ""}
                     onChange={(e) => set("operatingCost", num(e.target.value))}
                   />
                 </Field>
@@ -267,24 +300,30 @@ function Index() {
               <p className="text-[11px] uppercase tracking-wider text-mist/50">
                 Operating surplus / month
               </p>
-              <p
-                className={`mt-1 font-display text-lg font-semibold ${
-                  f.surplus >= 0 ? "text-aurora" : "text-rose"
-                }`}
-              >
-                {inr(f.surplus)} · {f.marginPct.toFixed(0)}%
-              </p>
+              {f ? (
+                <p
+                  className={`mt-1 font-display text-lg font-semibold ${
+                    f.surplus >= 0 ? "text-aurora" : "text-rose"
+                  }`}
+                >
+                  {inr(f.surplus)} · {f.marginPct.toFixed(0)}%
+                </p>
+              ) : (
+                <p className="mt-1 font-display text-lg font-semibold text-mist/40">—</p>
+              )}
             </div>
             <button
               type="button"
-              onClick={() => setInputs(DEFAULT_INPUTS)}
+              onClick={() => setDraft(EMPTY_INPUTS)}
               className="mt-3 w-full rounded-[10px] px-3 py-2 text-xs font-medium text-mist/70 ring-1 ring-line transition-colors hover:bg-panel/60 hover:text-white"
             >
-              Reset to sample case
+              Clear all inputs
             </button>
           </div>
         </section>
 
+        {ready && f && matches && active ? (
+          <>
         {/* CENTER: gauge + weighted factors */}
         <section className="lg:col-span-5">
           <div className="glass h-full rounded-[18px] p-5 ring-1 ring-line">
@@ -436,7 +475,7 @@ function Index() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="font-display text-sm font-semibold text-white/90">
-                  Better-scoring alternatives in {inputs.village}
+                  Better-scoring alternatives in {draft.village}
                 </h2>
                 <p className="mt-1 text-xs text-mist/60">
                   Same location, capital, revenue and cost — re-scored for every other category.
@@ -730,7 +769,7 @@ function Index() {
                   Module 3 · Competitor map
                 </p>
                 <h3 className="mt-1.5 font-display text-sm font-semibold text-white/90">
-                  Nearby {f.category.label.toLowerCase()} around {inputs.village}
+                  Nearby {f.category.label.toLowerCase()} around {draft.village}
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -831,11 +870,40 @@ function Index() {
             ) : (
               <p className="mt-4 text-xs text-mist/60">
                 Press “Scan area” to plot real businesses in the same category around{" "}
-                {inputs.village}, {inputs.district}.
+                {draft.village}, {draft.district}.
               </p>
             )}
           </div>
         </section>
+          </>
+        ) : (
+          <section className="lg:col-span-8">
+            <div className="glass flex h-full min-h-[420px] flex-col items-center justify-center rounded-[18px] p-10 text-center ring-1 ring-line">
+              <div className="grid size-12 place-items-center rounded-full bg-aurora/12 font-display text-lg font-semibold text-aurora ring-1 ring-aurora/25">
+                ?
+              </div>
+              <h2 className="mt-4 font-display text-xl font-semibold text-white">
+                Awaiting submission inputs
+              </h2>
+              <p className="mt-2 max-w-[52ch] text-sm leading-relaxed text-mist/70">
+                The feasibility certificate, financing plan and competitor map generate live once
+                the submission inputs on the left are filled in — no sample data is used.
+              </p>
+              {missing.length > 0 ? (
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {missing.map((m) => (
+                    <span
+                      key={m}
+                      className="rounded-full bg-amber/10 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-amber ring-1 ring-amber/25"
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
