@@ -168,7 +168,7 @@ function Index() {
           <div className="flex items-center gap-2 rounded-full bg-panel/60 px-3 py-1.5 ring-1 ring-line">
             <span className="size-1.5 rounded-full bg-aurora" />
             <span className="text-mist/80">
-              Ref FEAS-{inputs.district.slice(0, 3).toUpperCase() || "GEN"}-
+              Ref FEAS-{draft.district.slice(0, 3).toUpperCase() || "GEN"}-
               {String(Math.round((f?.total ?? 0) * 100)).padStart(4, "0")}
             </span>
           </div>
