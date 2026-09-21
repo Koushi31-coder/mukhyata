@@ -350,8 +350,8 @@ export interface SchemeGuide {
 
 export const SCHEME_GUIDES: Record<string, SchemeGuide> = {
   PMEGP: {
-    portal: "KVIC PMEGP e-Portal",
-    portalUrl: "https://www.kviconline.gov.in/pmegpeportal/",
+    portal: "PMEGP e-Portal (MSME)",
+    portalUrl: "https://pmegp.msme.gov.in/Home/HomePage/",
     processingWeeks: "8–14 weeks from application to first disbursement",
     steps: [
       "Register as an individual applicant on the PMEGP e-Portal and verify your mobile and Aadhaar.",
